@@ -58,6 +58,7 @@ export type PocketBaseFileInput = File | File[] | string | string[];
  * so an unset select/relation-like value is represented by an empty string.
  */
 export interface TicketRecord extends PocketBaseRecord {
+  user_id: RecordId | "";
   title: string;
   description: string;
   room: RoomValue | "";
@@ -70,6 +71,7 @@ export interface TicketRecord extends PocketBaseRecord {
 
 /** Writable fields match the current PocketBase `tickets` collection. */
 export interface TicketWriteData {
+  user_id?: RecordId | "";
   title?: string;
   description?: string;
   room?: RoomValue | "";

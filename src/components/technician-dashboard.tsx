@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   LogOut,
   Plus,
-  RefreshCw,
   Search,
   ShieldCheck,
   TicketCheck,
@@ -41,7 +40,7 @@ import { UserTicketPanel } from "@/components/user-ticket-panel";
 import { listTicketEvents } from "@/lib/ticket-events";
 import { createTicketComment, listTicketComments } from "@/lib/ticket-comments";
 import type { AuthSession } from "@/lib/auth";
-import { PocketBaseRequestError } from "@/lib/pocketbase";
+import { PocketBaseRequestError, subscribeToTicketChanges } from "@/lib/pocketbase";
 import { listTickets, updateTicket } from "@/lib/tickets";
 import { getRecord } from "@/lib/pocketbase";
 import {
@@ -54,7 +53,7 @@ import {
   type TicketStatus,
 } from "@/types/pocketbase";
 
-type DashboardView = "overview" | "new-ticket";
+type DashboardView = "overview" | "new-ticket" | "my-tickets";
 type StatusFilter = "Wszystkie" | TicketStatus;
 
 const ROOMS: { value: RoomValue; label: string }[] = [
@@ -135,6 +134,21 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
     };
   }, [fetchTickets]);
 
+  useEffect(() => {
+    if (view !== "overview") return;
+    const refresh = () => {
+      if (document.visibilityState === "visible") void fetchTickets();
+    };
+    const unsubscribe = subscribeToTicketChanges(session.token, refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [fetchTickets, session.token, view]);
+
   const visibleTickets = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase("pl");
     return tickets.filter((ticket) => {
@@ -166,17 +180,6 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
     return [...counts.entries()].sort((a, b) => b[1] - a[1]);
   }, [tickets]);
 
-  if (view === "new-ticket") {
-    return (
-      <UserTicketPanel
-        audience="technik"
-        onBack={() => setView("overview")}
-        onLogout={onLogout}
-        session={session}
-      />
-    );
-  }
-
   const displayName = session.user.email.split("@")[0]?.replace(/[._-]+/g, " ") || "Techniku";
   const shownTickets = visibleTickets;
   const newCount = tickets.filter((ticket) => ticket.status === "nowe").length;
@@ -206,6 +209,23 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
       .then((result) => setTicketComments(result.items))
       .catch(() => setTicketComments([]));
   }, [selectedTicket, session.token]);
+
+  if (view !== "overview") {
+    return (
+      <UserTicketPanel
+        audience="technik"
+        onBack={() => setView("overview")}
+        initialView={view === "my-tickets" ? "mine" : "create"}
+        onTicketCreated={() => {
+          setView("overview");
+          setIsLoading(true);
+          void fetchTickets();
+        }}
+        onLogout={onLogout}
+        session={session}
+      />
+    );
+  }
 
   async function submitTicketComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -255,6 +275,8 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
           >
             <LayoutDashboard size={17} /> Przegląd
           </Button>
+          <Button className="tech-nav-item" onClick={() => setView("new-ticket")} type="button" variant="ghost"><Plus size={17} /> Zgłoś usterkę</Button>
+          <Button className="tech-nav-item" onClick={() => setView("my-tickets")} type="button" variant="ghost"><ClipboardList size={17} /> Moje usterki</Button>
         </nav>
 
         <div className="sidebar-bottom">
@@ -270,17 +292,6 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
         <header className="technician-topbar">
           <div className="breadcrumb"><span>Helpdesk</span><ChevronRight size={14} /><strong>Przegląd</strong></div>
           <div className="topbar-actions">
-            <Button
-              aria-label="Odśwież zgłoszenia"
-              className="notification-button"
-              disabled={isLoading}
-              onClick={refreshTickets}
-              size="icon"
-              type="button"
-              variant="outline"
-            >
-              <RefreshCw className={isLoading ? "spin" : ""} size={17} />
-            </Button>
             <div className="topbar-profile"><span className="tech-profile-avatar">{displayName.slice(0, 1).toUpperCase()}</span><span>{session.user.email}</span></div>
           </div>
         </header>

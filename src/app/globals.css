@@ -1287,6 +1287,20 @@
   gap: 14px;
 }
 
+.my-tickets-card { padding: 19px 18px 18px; }
+.my-tickets-empty { margin: 14px 0 0; color: #819087; font-size: 11px; line-height: 1.5; }
+.my-tickets-list { display: grid; gap: 0; max-height: 320px; overflow: auto; margin: 4px 0 0; padding: 0; list-style: none; }
+.my-tickets-list li { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 12px 0; border-bottom: 1px solid #edf0ec; }
+.my-tickets-list li:last-child { border-bottom: 0; padding-bottom: 0; }
+.my-ticket-title { min-width: 0; }
+.my-ticket-title strong, .my-ticket-title small { display: block; }
+.my-ticket-title strong { overflow: hidden; color: #425048; font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.my-ticket-title small { margin-top: 4px; color: #939e96; font-size: 9px; }
+.my-ticket-status { flex: 0 0 auto; padding: 4px 7px; border-radius: 999px; font-size: 9px; font-weight: 650; text-transform: capitalize; }
+.my-ticket-status.new { background: #edf4e9; color: #587a50; }
+.my-ticket-status.progress { background: #edf2f8; color: #54708f; }
+.my-ticket-status.closed { background: #f0f1ef; color: #737c75; }
+
 .how-card {
   padding: 19px 18px 18px;
 }
@@ -1519,6 +1533,24 @@
   color: var(--tech-ink);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
+
+.user-ticket-shell { grid-template-columns: 236px minmax(0, 1fr); padding: 0; }
+.user-ticket-main { min-width: 0; padding: 0 5.3vw 18px; }
+.user-ticket-shell .dashboard-header { height: 66px; }
+.user-ticket-shell .dashboard-header .brand { display: none; }
+.user-ticket-shell .dashboard-header, .user-ticket-shell .ticket-workspace, .user-ticket-shell .dashboard-footer { width: min(100%, 1240px); }
+.user-ticket-shell .user-ticket-main { display: block; }
+.user-tickets-page { width: min(100%, 1240px); min-height: calc(100vh - 105px); margin: 30px auto 0; }
+.user-tickets-page > h1 { margin: 0; color: #1e2924; font-size: 25px; letter-spacing: -0.7px; }
+.user-tickets-page > p { margin: 6px 0 20px; color: #7e8982; font-size: 12px; }
+.user-tickets-grid { display: grid; gap: 12px; }
+.user-ticket-item { padding: 17px 18px; }
+.user-ticket-item-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.user-ticket-item h2 { margin: 0; font-size: 14px; }
+.user-ticket-item p { margin: 10px 0; color: #647168; font-size: 12px; line-height: 1.55; white-space: pre-wrap; }
+.user-ticket-item > small { color: #939e96; font-size: 10px; }
+.user-ticket-shell .dashboard-intro { display: none; }
+.dashboard-shell > .user-ticket-main { display: contents; }
 
 .technician-sidebar {
   position: sticky;
@@ -2339,6 +2371,8 @@
   .sidebar-bottom {
     display: none;
   }
+
+  .user-ticket-sidebar .sidebar-bottom { display: block; margin-top: 8px; }
 
   .tech-nav {
     grid-template-columns: 1fr;

@@ -43,6 +43,40 @@ export class PocketBaseRequestError extends Error {
   }
 }
 
+interface PocketBaseRealtimeConnectEvent {
+  lastEventId: string;
+}
+
+export function subscribeToTicketChanges(token: string, onChange: () => void): () => void {
+  const source = new EventSource(`${getPocketBaseUrl()}/api/realtime`);
+  let active = true;
+
+  source.addEventListener("PB_CONNECT", (event) => {
+    if (!active) return;
+    const { lastEventId: clientId } = event as MessageEvent<string> & PocketBaseRealtimeConnectEvent;
+    if (!clientId) return;
+    void fetch(`${getPocketBaseUrl()}/api/realtime`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ clientId, subscriptions: ["tickets/*"] }),
+    }).catch(() => {
+      // EventSource reconnects automatically; a later PB_CONNECT retries subscription.
+    });
+  });
+  source.addEventListener("tickets/*", () => {
+    if (active) onChange();
+  });
+
+  return () => {
+    active = false;
+    source.close();
+  };
+}
+
 function getPocketBaseUrl(): string {
   if (!POCKETBASE_URL) {
     throw new Error("Brakuje zmiennej NEXT_PUBLIC_POCKETBASE_URL.");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type SubmitHandler } from "react-hook-form";
@@ -10,6 +10,8 @@ import {
   Check,
   CircleHelp,
   FileImage,
+  ClipboardList,
+  LayoutDashboard,
   LaptopMinimal,
   LoaderCircle,
   LogOut,
@@ -27,8 +29,8 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { AuthSession } from "@/lib/auth";
-import { createTicket } from "@/lib/tickets";
-import { PocketBaseRequestError } from "@/lib/pocketbase";
+import { createTicket, listTickets } from "@/lib/tickets";
+import { PocketBaseRequestError, subscribeToTicketChanges } from "@/lib/pocketbase";
 import {
   TICKET_CATEGORIES,
   TICKET_PRIORITIES,
@@ -80,10 +82,16 @@ interface UserTicketPanelProps {
   onLogout: () => void;
   audience?: "uzytkownik" | "technik";
   onBack?: () => void;
+  onTicketCreated?: () => void;
+  initialView?: "create" | "mine";
 }
 
-export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", onBack }: UserTicketPanelProps) {
+export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", onBack, onTicketCreated, initialView = "create" }: UserTicketPanelProps) {
+  const [userView, setUserView] = useState<"create" | "mine">(initialView);
   const [createdTicket, setCreatedTicket] = useState<TicketRecord | null>(null);
+  const [myTickets, setMyTickets] = useState<TicketRecord[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [ticketsError, setTicketsError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const {
@@ -102,6 +110,29 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
 
   const photoRegistration = register("photo");
 
+  const fetchMyTickets = useCallback(async () => {
+    try {
+      const result = await listTickets({
+        token: session.token,
+        perPage: 100,
+        sort: "-created",
+        filter: `user_id = ${JSON.stringify(session.user.id)}`,
+      });
+      setMyTickets(result.items);
+      setTicketsError("");
+    } catch (error) {
+      setTicketsError(error instanceof Error ? error.message : "Nie udało się pobrać zgłoszeń.");
+    } finally {
+      setTicketsLoading(false);
+    }
+  }, [session.token, session.user.id]);
+
+  useEffect(() => {
+    void fetchMyTickets();
+    const unsubscribe = subscribeToTicketChanges(session.token, () => void fetchMyTickets());
+    return unsubscribe;
+  }, [fetchMyTickets, session.token]);
+
   const submitTicket: SubmitHandler<TicketFormValues> = async (values) => {
     setSubmitError("");
     setCreatedTicket(null);
@@ -109,6 +140,7 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
     try {
       const ticket = await createTicket(
         {
+          user_id: session.user.id,
           title: values.title,
           description: values.description,
           room: values.room,
@@ -120,6 +152,8 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
         { token: session.token },
       );
       setCreatedTicket(ticket);
+      setMyTickets((current) => [ticket, ...current.filter((item) => item.id !== ticket.id)]);
+      onTicketCreated?.();
       reset();
       setSelectedPhoto(null);
     } catch (error) {
@@ -144,30 +178,33 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
   }
 
   return (
-    <main className="dashboard-shell">
+    <main className="technician-shell user-ticket-shell">
+      {(audience === "uzytkownik" || audience === "technik") && (
+        <aside className="technician-sidebar user-ticket-sidebar">
+          <Link className="tech-brand" href="/" aria-label="Szkolny Helpdesk — strona główna">
+            <span className="tech-brand-icon"><Wrench size={18} /></span>
+            <span>szkolny<strong>helpdesk</strong></span>
+          </Link>
+          <div className="sidebar-label">MENU GŁÓWNE</div>
+          <nav className="tech-nav" aria-label="Menu użytkownika">
+            {audience === "technik" && <Button className="tech-nav-item" onClick={onBack} type="button" variant="ghost"><LayoutDashboard size={17} /> Przegląd</Button>}
+            <Button className={userView === "create" ? "tech-nav-item active" : "tech-nav-item"} onClick={() => setUserView("create")} type="button" variant="ghost"><Plus size={17} /> Zgłoś usterkę</Button>
+            <Button className={userView === "mine" ? "tech-nav-item active" : "tech-nav-item"} onClick={() => setUserView("mine")} type="button" variant="ghost"><ClipboardList size={17} /> Moje usterki<span className="nav-count">{myTickets.length}</span></Button>
+          </nav>
+          <div className="sidebar-bottom"><div className="tech-profile"><span className="tech-profile-avatar">{session.user.email.slice(0, 1).toUpperCase()}</span><span className="tech-profile-copy"><strong>{session.user.email}</strong></span><button className="tech-logout" onClick={signOut} type="button" aria-label="Wyloguj się"><LogOut size={16} /></button></div></div>
+        </aside>
+      )}
+      <section className="user-ticket-main">
       <header className="dashboard-header">
         <Link className="brand" href="/" aria-label="Szkolny Helpdesk — strona główna">
           <span className="brand-mark"><Wrench size={19} strokeWidth={2.5} /></span>
           <span className="brand-name">szkolny<span>helpdesk</span></span>
         </Link>
-        <div className="dashboard-account">
-          {onBack && <Button className="back-to-technician" onClick={onBack} type="button" variant="outline">Wróć do panelu</Button>}
-          <div className="account-copy"><span>{audience === "technik" ? "Konto technika" : "Moje konto"}</span><strong>{session.user.email}</strong></div>
-          <span className="account-avatar" aria-hidden="true">{session.user.email.slice(0, 1).toUpperCase()}</span>
-          <button className="signout-button" onClick={signOut} type="button"><LogOut size={16} /><span>Wyloguj</span></button>
-        </div>
       </header>
 
-      <section className="dashboard-intro">
-        <div>
-          <div className="dashboard-eyebrow"><span className="online-dot" /> PANEL {audience === "technik" ? "TECHNIKA" : "UŻYTKOWNIKA"}</div>
-          <h1>Zgłoś usterkę<span>.</span></h1>
-          <p>Opisz problem, a przekażemy go zespołowi technicznemu.</p>
-        </div>
-        <div className="intro-mark" aria-hidden="true"><TicketCheck size={26} /></div>
-      </section>
-
-      <div className="ticket-workspace">
+      {userView === "mine" ? (
+        <section className="user-tickets-page"><h1>Moje usterki</h1><p>Sprawdzaj status swoich zgłoszeń.</p>{ticketsLoading ? <p className="my-tickets-empty">Pobieranie zgłoszeń…</p> : ticketsError ? <p role="alert" className="my-tickets-empty">{ticketsError}</p> : myTickets.length === 0 ? <p className="my-tickets-empty">Nie masz jeszcze zgłoszeń.</p> : <div className="user-tickets-grid">{myTickets.map((ticket) => <Card className="user-ticket-item" key={ticket.id}><div className="user-ticket-item-head"><h2>{ticket.title || "Bez tytułu"}</h2><span className={`my-ticket-status ${ticket.status === "zamknięte" ? "closed" : ticket.status === "w realizacji" ? "progress" : "new"}`}>{ticket.status || "nowe"}</span></div><p>{ticket.description}</p><small>{ticket.room ? `Sala ${ticket.room}` : ""}{ticket.room && ticket.category ? " · " : ""}{ticket.category} · {new Date(ticket.created).toLocaleDateString("pl-PL")}</small></Card>)}</div>}</section>
+      ) : <div className="ticket-workspace">
         <Card className="ticket-form-card" role="region" aria-labelledby="ticket-form-title">
           <div className="ticket-form-heading">
             <div className="ticket-heading-icon"><Plus size={19} /></div>
@@ -284,6 +321,25 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
         </Card>
 
         <aside className="ticket-side-column">
+          <Card className="my-tickets-card" role="region" aria-label="Moje zgłoszenia">
+            <div className="how-card-title"><span className="how-icon"><TicketCheck size={18} /></span><h2>Moje zgłoszenia</h2></div>
+            {ticketsLoading ? (
+              <p className="my-tickets-empty">Pobieranie zgłoszeń…</p>
+            ) : ticketsError ? (
+              <p className="my-tickets-empty" role="alert">{ticketsError}</p>
+            ) : myTickets.length === 0 ? (
+              <p className="my-tickets-empty">Nie masz jeszcze zgłoszeń.</p>
+            ) : (
+              <ul className="my-tickets-list">
+                {myTickets.map((ticket) => (
+                  <li key={ticket.id}>
+                    <div className="my-ticket-title"><strong>{ticket.title || "Bez tytułu"}</strong><small>{ticket.room ? `Sala ${ticket.room}` : ""}{ticket.room && ticket.category ? " · " : ""}{ticket.category}</small></div>
+                    <span className={`my-ticket-status ${ticket.status === "zamknięte" ? "closed" : ticket.status === "w realizacji" ? "progress" : "new"}`}>{ticket.status || "nowe"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
           <Card className="how-card" role="region" aria-label="Jak działa zgłaszanie">
             <div className="how-card-title"><span className="how-icon"><LaptopMinimal size={18} /></span><h2>Jak to działa?</h2></div>
             <ol className="how-steps">
@@ -297,9 +353,10 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
             <div><strong>To pilna sprawa?</strong><p>Skontaktuj się bezpośrednio z sekretariatem lub technikiem.</p></div>
           </Card>
         </aside>
-      </div>
+      </div>}
 
       <footer className="dashboard-footer"><span>© 2026 Szkolny Helpdesk</span><span><ShieldCheck size={14} /> Dostęp do ticketów ma wyłącznie zespół techniczny.</span></footer>
+      </section>
     </main>
   );
 }
