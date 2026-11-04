@@ -84,23 +84,36 @@ export type CreateTicketData = TicketWriteData;
 export type UpdateTicketData = TicketWriteData;
 
 /**
- * Current `ticket_events` has `created`, but no `updated` field. The names
- * `editor` and `relation` are the actual field names in its schema.
+ * Status history records use editor_id and relation as user/ticket relations.
  */
 export interface TicketEventRecord {
   id: RecordId;
   created: string;
-  editor: string;
+  editor_id: string;
   relation: RecordId | "";
   old_status: TicketStatus | "";
   new_status: TicketStatus | "";
+  expand?: { editor_id?: UserRecord };
 }
 
 export interface TicketEventWriteData {
-  editor?: string;
+  editor_id?: string;
   relation?: RecordId | "";
   old_status?: TicketStatus | "";
   new_status?: TicketStatus | "";
+}
+
+export interface TicketCommentRecord extends PocketBaseRecord {
+  commenter_id: RecordId | "";
+  ticket_id: RecordId | "";
+  comment: string;
+  expand?: { commenter_id?: UserRecord };
+}
+
+export interface TicketCommentWriteData {
+  commenter_id?: RecordId | "";
+  ticket_id?: RecordId | "";
+  comment?: string;
 }
 
 export type CreateTicketEventData = TicketEventWriteData;
@@ -111,12 +124,14 @@ export interface PocketBaseCollections {
   users: UserRecord;
   tickets: TicketRecord;
   ticket_events: TicketEventRecord;
+  ticket_comments: TicketCommentRecord;
 }
 
 export interface PocketBaseWriteData {
   users: RegisterUserData;
   tickets: TicketWriteData;
   ticket_events: TicketEventWriteData;
+  ticket_comments: TicketCommentWriteData;
 }
 
 export type CollectionName = keyof PocketBaseCollections;

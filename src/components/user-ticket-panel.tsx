@@ -266,7 +266,7 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
                 ) : (
                   <label className="upload-label" htmlFor="ticket-photo">
                     <span className="upload-icon"><Upload size={18} /></span>
-                    <span><strong>Wybierz zdjęcie</strong><small>PNG, JPG, WEBP lub GIF · maks. 5 MB</small></span>
+                    <span><strong>Wybierz zdjęcie</strong><small>Jedno zdjęcie · PNG, JPG, WEBP lub GIF · maks. 5 MB</small></span>
                     <span className="upload-browse">Przeglądaj</span>
                   </label>
                 )}

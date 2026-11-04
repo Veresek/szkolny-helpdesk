@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -27,6 +27,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import {
   Table,
@@ -37,9 +38,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { UserTicketPanel } from "@/components/user-ticket-panel";
+import { listTicketEvents } from "@/lib/ticket-events";
+import { createTicketComment, listTicketComments } from "@/lib/ticket-comments";
 import type { AuthSession } from "@/lib/auth";
 import { PocketBaseRequestError } from "@/lib/pocketbase";
-import { listTickets } from "@/lib/tickets";
+import { listTickets, updateTicket } from "@/lib/tickets";
+import { getRecord } from "@/lib/pocketbase";
 import {
   TICKET_CATEGORIES,
   TICKET_PRIORITIES,
@@ -78,6 +82,12 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
   const [roomFilter, setRoomFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTicket, setSelectedTicket] = useState<TicketRecord | null>(null);
+  const [ticketEvents, setTicketEvents] = useState<import("@/types/pocketbase").TicketEventRecord[]>([]);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [ticketComments, setTicketComments] = useState<import("@/types/pocketbase").TicketCommentRecord[]>([]);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentSaving, setCommentSaving] = useState(false);
 
   const fetchTickets = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -168,7 +178,7 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
   }
 
   const displayName = session.user.email.split("@")[0]?.replace(/[._-]+/g, " ") || "Techniku";
-  const shownTickets = view === "overview" ? visibleTickets.slice(0, 4) : visibleTickets;
+  const shownTickets = visibleTickets;
   const newCount = tickets.filter((ticket) => ticket.status === "nowe").length;
   const inProgressCount = tickets.filter((ticket) => ticket.status === "w realizacji").length;
   const closedCount = tickets.filter((ticket) => ticket.status === "zamknięte").length;
@@ -178,6 +188,53 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
   function refreshTickets() {
     setIsLoading(true);
     void fetchTickets();
+  }
+
+  useEffect(() => {
+    if (!selectedTicket) { setTicketEvents([]); setTicketComments([]); setCommentDraft(""); return; }
+    void listTicketEvents({ ticketId: selectedTicket.id, token: session.token, sort: "-created", perPage: 100 })
+      .then(async (result) => {
+        const items = await Promise.all(result.items.map(async (item) => {
+          if (item.expand?.editor_id?.email || !item.editor_id) return item;
+          try { return { ...item, expand: { ...item.expand, editor_id: await getRecord("users", item.editor_id, { token: session.token }) } }; }
+          catch { return item; }
+        }));
+        setTicketEvents(items);
+      })
+      .catch(() => setTicketEvents([]));
+    void listTicketComments(selectedTicket.id, { token: session.token, perPage: 100 })
+      .then((result) => setTicketComments(result.items))
+      .catch(() => setTicketComments([]));
+  }, [selectedTicket, session.token]);
+
+  async function submitTicketComment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const comment = commentDraft.trim();
+    if (!selectedTicket || !comment || commentSaving) return;
+    setCommentSaving(true);
+    try {
+      const created = await createTicketComment({ commenter_id: session.user.id, ticket_id: selectedTicket.id, comment }, { token: session.token });
+      setTicketComments((current) => [...current, { ...created, expand: { commenter_id: session.user } }]);
+      setCommentDraft("");
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Nie udało się dodać komentarza.");
+    } finally { setCommentSaving(false); }
+  }
+
+  async function changeTicketStatus(status: TicketStatus) {
+    if (!selectedTicket || statusSaving || status === selectedTicket.status) return;
+    setStatusSaving(true);
+    try {
+      const oldStatus = selectedTicket.status;
+      const updated = await updateTicket(selectedTicket.id, { status }, { token: session.token });
+      await import("@/lib/ticket-events").then(({ createTicketEvent }) => createTicketEvent({
+        editor_id: session.user.id, relation: selectedTicket.id, old_status: oldStatus, new_status: status,
+      }, { token: session.token }));
+      setTickets((current) => current.map((ticket) => ticket.id === updated.id ? updated : ticket));
+      setSelectedTicket(updated);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Nie udało się zmienić statusu.");
+    } finally { setStatusSaving(false); }
   }
 
   return (
@@ -203,7 +260,7 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
         <div className="sidebar-bottom">
           <div className="tech-profile">
             <span className="tech-profile-avatar">{displayName.slice(0, 1).toUpperCase()}</span>
-            <span className="tech-profile-copy"><strong>{displayName}</strong><small>Technik</small></span>
+            <span className="tech-profile-copy"><strong>{session.user.email}</strong></span>
             <button className="tech-logout" onClick={onLogout} type="button" aria-label="Wyloguj się"><LogOut size={16} /></button>
           </div>
         </div>
@@ -224,7 +281,7 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
             >
               <RefreshCw className={isLoading ? "spin" : ""} size={17} />
             </Button>
-            <div className="topbar-profile"><span className="tech-profile-avatar">{displayName.slice(0, 1).toUpperCase()}</span><span>{displayName}</span></div>
+            <div className="topbar-profile"><span className="tech-profile-avatar">{displayName.slice(0, 1).toUpperCase()}</span><span>{session.user.email}</span></div>
           </div>
         </header>
 
@@ -232,7 +289,6 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
           <div className="dashboard-title-row">
             <div>
               <p className="dashboard-kicker">PANEL ZESPOŁU TECHNICZNEGO</p>
-              <h1>Dzień dobry, {displayName}<span>.</span></h1>
               <p className="dashboard-subtitle">
                 {lastLoadedAt ? `Przegląd zgłoszeń zaktualizowany o ${lastLoadedAt}.` : "Bieżący przegląd zgłoszeń w Twojej szkole."}
               </p>
@@ -261,7 +317,7 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
               <CardHeader className="ticket-list-header">
                 <div className="ticket-list-title">
                   <div>
-                    <CardTitle>Najnowsze zgłoszenia</CardTitle>
+                    <CardTitle>Wszystkie zgłoszenia</CardTitle>
                     <CardDescription>{isLoading ? "Pobieranie danych z PocketBase…" : lastLoadedAt ? `Zaktualizowano o ${lastLoadedAt}` : "Dane z kolekcji tickets"}</CardDescription>
                   </div>
                 </div>
@@ -293,7 +349,7 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {shownTickets.map((ticket) => <TicketTableRow key={ticket.id} ticket={ticket} />)}
+                    {shownTickets.map((ticket) => <TicketTableRow key={ticket.id} ticket={ticket} onClick={() => setSelectedTicket(ticket)} />)}
                     {shownTickets.length === 0 && (
                       <TableRow><TableCell className="empty-table" colSpan={6}>
                         {isLoading ? "Ładowanie zgłoszeń…" : loadError ? "Brak danych do wyświetlenia." : "Brak zgłoszeń dla wybranych filtrów."}
@@ -333,6 +389,34 @@ export function TechnicianDashboard({ session, onLogout }: TechnicianDashboardPr
           <footer className="technician-footer"><span>© 2026 Szkolny Helpdesk</span><span><ShieldCheck size={14} /> Zalogowano bezpiecznie jako technik</span></footer>
         </div>
       </section>
+      {selectedTicket && <div className="ticket-modal-backdrop" role="presentation" onClick={() => setSelectedTicket(null)}>
+        <section className="ticket-detail-modal" role="dialog" aria-modal="true" aria-labelledby="ticket-detail-title" onClick={(event) => event.stopPropagation()}>
+          <button className="ticket-modal-close" type="button" aria-label="Zamknij" onClick={() => setSelectedTicket(null)}>×</button>
+          <p className="dashboard-kicker">SZCZEGÓŁY ZGŁOSZENIA · {selectedTicket.id}</p>
+          <div className="ticket-detail-columns">
+            <div className="ticket-detail-main">
+              <section className="ticket-detail-section">
+                <h2 id="ticket-detail-title">{selectedTicket.title || "Bez tytułu"}</h2>
+                <p className="ticket-detail-description">{selectedTicket.description || "Brak opisu."}</p>
+                {(Array.isArray(selectedTicket.photo) ? selectedTicket.photo : typeof selectedTicket.photo === "string" ? [selectedTicket.photo] : []).filter(Boolean).map((photo) => <img className="ticket-detail-photo" key={photo} src={`${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/tickets/${selectedTicket.id}/${encodeURIComponent(photo)}`} alt="Zdjęcie do zgłoszenia" />)}
+              </section>
+              <section className="ticket-detail-section ticket-status-section">
+                <label className="ticket-status-control">Status<Select value={selectedTicket.status} disabled={statusSaving} onChange={(event) => void changeTicketStatus(event.target.value as TicketStatus)}>{TICKET_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}</Select></label>
+                <h3>Historia statusów</h3>
+                <ol className="ticket-event-list">{ticketEvents.map((event) => {
+                  const editorEmail = event.expand?.editor_id?.email
+                    || (event.editor_id === session.user.id ? session.user.email : "");
+                  return <li key={event.id}><strong>{event.old_status || "utworzono"} → {event.new_status}</strong><time>{formatTicketDate(event.created)}</time>{editorEmail && <small>{editorEmail}</small>}</li>;
+                })}{ticketEvents.length === 0 && <li className="ticket-history-empty">Brak zapisanej historii zmian.</li>}</ol>
+              </section>
+            </div>
+            <aside className="ticket-detail-comments"><h3>Komentarze</h3>
+              <form className="ticket-comment-form" onSubmit={submitTicketComment}><Textarea aria-label="Treść komentarza" onChange={(event) => setCommentDraft(event.target.value)} placeholder="Napisz komentarz…" value={commentDraft} /><Button disabled={!commentDraft.trim() || commentSaving} type="submit" size="sm">{commentSaving ? "Zapisywanie…" : "Dodaj komentarz"}</Button></form>
+              <ol className="ticket-comment-list">{ticketComments.map((item) => <li key={item.id}><p>{item.comment}</p><small>{item.expand?.commenter_id?.email || item.commenter_id}</small><time>{formatTicketDate(item.created)}</time></li>)}{ticketComments.length === 0 && <li className="ticket-history-empty">Brak komentarzy.</li>}</ol>
+            </aside>
+          </div>
+        </section>
+      </div>}
     </main>
   );
 }
@@ -361,11 +445,11 @@ function StatCard({
   );
 }
 
-function TicketTableRow({ ticket }: { ticket: TicketRecord }) {
+function TicketTableRow({ ticket, onClick }: { ticket: TicketRecord; onClick: () => void }) {
   const priorityVariant = ticket.priority === "wysoki" ? "destructive" : ticket.priority === "średni" ? "warning" : "secondary";
   const statusVariant = ticket.status === "zamknięte" ? "success" : ticket.status === "w realizacji" ? "secondary" : "outline";
   return (
-    <TableRow className="demo-ticket-row">
+    <TableRow className="demo-ticket-row clickable-ticket-row" onClick={onClick}>
       <TableCell className="ticket-id" title={ticket.id}>{ticket.id}</TableCell>
       <TableCell className="ticket-subject"><strong>{ticket.title || "Bez tytułu"}</strong><small>{ticket.category || "Bez kategorii"}</small></TableCell>
       <TableCell className="ticket-room">{ticket.room ? `Sala ${ticket.room}` : "—"}</TableCell>

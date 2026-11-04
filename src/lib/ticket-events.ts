@@ -29,6 +29,7 @@ export function listTicketEvents({
 
   return listRecords("ticket_events", {
     ...options,
+    expand: options.expand ?? "editor_id",
     filter: conditions.length ? conditions.join(" && ") : undefined,
   });
 }
