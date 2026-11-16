@@ -9,6 +9,7 @@ import {
 	type ReactNode,
 } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
 	CheckCircle2,
 	CircleAlert,
@@ -44,15 +45,16 @@ import {
 } from "@/components/ui/table";
 import { UserTicketPanel } from "@/components/user-ticket-panel";
 import { DashboardTopbar } from "@/components/dashboard-topbar";
-import { listTicketEvents } from "@/lib/ticket-events";
+import { createTicketEvent, listTicketEvents } from "@/lib/ticket-events";
 import { createTicketComment, listTicketComments } from "@/lib/ticket-comments";
 import type { AuthSession } from "@/lib/auth";
 import {
 	PocketBaseRequestError,
+	getRecord,
 	subscribeToTicketChanges,
 } from "@/lib/pocketbase";
 import { listTickets, updateTicket } from "@/lib/tickets";
-import { getRecord } from "@/lib/pocketbase";
+import { ROOM_OPTIONS } from "@/lib/ticket-options";
 import { formatTicketStatus } from "@/lib/utils";
 import {
 	TICKET_CATEGORIES,
@@ -60,6 +62,8 @@ import {
 	TICKET_STATUSES,
 	type RoomValue,
 	type TicketCategory,
+	type TicketCommentRecord,
+	type TicketEventRecord,
 	type TicketRecord,
 	type TicketStatus,
 } from "@/types/pocketbase";
@@ -67,15 +71,14 @@ import {
 type DashboardView = "overview" | "new-ticket" | "my-tickets";
 type StatusFilter = "Wszystkie" | TicketStatus;
 
-const ROOMS: { value: RoomValue; label: string }[] = [
-	{ value: "1", label: "Sala 1" },
-	{ value: "2", label: "Sala 2" },
-	{ value: "3", label: "Sala 3" },
-	{ value: "4", label: "Sala 4" },
-	{ value: "5", label: "Sala 5" },
-];
+const STATUS_FILTERS: StatusFilter[] = ["Wszystkie", ...TICKET_STATUSES];
+const CATEGORY_COLORS = ["#477c64", "#8bab61", "#d8a255", "#9ca9a0"];
+const POCKETBASE_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL?.replace(/\/$/, "");
 
-const statusFilters: StatusFilter[] = ["Wszystkie", ...TICKET_STATUSES];
+interface TicketDetailsState<T> {
+	ticketId: string;
+	items: T[];
+}
 
 interface TechnicianDashboardProps {
 	session: AuthSession;
@@ -98,15 +101,22 @@ export function TechnicianDashboard({
 	const [selectedTicket, setSelectedTicket] = useState<TicketRecord | null>(
 		null,
 	);
-	const [ticketEvents, setTicketEvents] = useState<
-		import("@/types/pocketbase").TicketEventRecord[]
-	>([]);
+	const [ticketEventState, setTicketEventState] =
+		useState<TicketDetailsState<TicketEventRecord> | null>(null);
 	const [statusSaving, setStatusSaving] = useState(false);
-	const [ticketComments, setTicketComments] = useState<
-		import("@/types/pocketbase").TicketCommentRecord[]
-	>([]);
+	const [ticketCommentState, setTicketCommentState] =
+		useState<TicketDetailsState<TicketCommentRecord> | null>(null);
 	const [commentDraft, setCommentDraft] = useState("");
 	const [commentSaving, setCommentSaving] = useState(false);
+	const ticketId = selectedTicket?.id;
+	const ticketEvents =
+		ticketId && ticketEventState?.ticketId === ticketId
+			? ticketEventState.items
+			: [];
+	const ticketComments =
+		ticketId && ticketCommentState?.ticketId === ticketId
+			? ticketCommentState.items
+			: [];
 
 	const fetchTickets = useCallback(
 		async (signal?: AbortSignal) => {
@@ -222,7 +232,6 @@ export function TechnicianDashboard({
 
 	const displayName =
 		session.user.email.split("@")[0]?.replace(/[._-]+/g, " ") || "Techniku";
-	const shownTickets = visibleTickets;
 	const newCount = tickets.filter(ticket => ticket.status === "nowe").length;
 	const inProgressCount = tickets.filter(
 		ticket => ticket.status === "w realizacji",
@@ -241,15 +250,21 @@ export function TechnicianDashboard({
 		void fetchTickets();
 	}
 
+	function openTicket(ticket: TicketRecord) {
+		setSelectedTicket(ticket);
+		setCommentDraft("");
+	}
+
+	function closeTicket() {
+		setSelectedTicket(null);
+		setCommentDraft("");
+	}
+
 	useEffect(() => {
-		if (!selectedTicket) {
-			setTicketEvents([]);
-			setTicketComments([]);
-			setCommentDraft("");
-			return;
-		}
+		if (!ticketId) return;
+		let active = true;
 		void listTicketEvents({
-			ticketId: selectedTicket.id,
+			ticketId,
 			token: session.token,
 			sort: "-created",
 			perPage: 100,
@@ -273,16 +288,25 @@ export function TechnicianDashboard({
 						}
 					}),
 				);
-				setTicketEvents(items);
+				if (active) setTicketEventState({ ticketId, items });
 			})
-			.catch(() => setTicketEvents([]));
-		void listTicketComments(selectedTicket.id, {
+			.catch(() => {
+				if (active) setTicketEventState({ ticketId, items: [] });
+			});
+		void listTicketComments(ticketId, {
 			token: session.token,
 			perPage: 100,
 		})
-			.then(result => setTicketComments(result.items))
-			.catch(() => setTicketComments([]));
-	}, [selectedTicket, session.token]);
+			.then(result => {
+				if (active) setTicketCommentState({ ticketId, items: result.items });
+			})
+			.catch(() => {
+				if (active) setTicketCommentState({ ticketId, items: [] });
+			});
+		return () => {
+			active = false;
+		};
+	}, [ticketId, session.token]);
 
 	if (view !== "overview") {
 		return (
@@ -315,10 +339,17 @@ export function TechnicianDashboard({
 				},
 				{ token: session.token },
 			);
-			setTicketComments(current => [
-				...current,
-				{ ...created, expand: { commenter_id: session.user } },
-			]);
+			setTicketCommentState(current =>
+				current?.ticketId === selectedTicket.id
+					? {
+							...current,
+							items: [
+								...current.items,
+								{ ...created, expand: { commenter_id: session.user } },
+							],
+						}
+					: current,
+			);
 			setCommentDraft("");
 		} catch (error) {
 			setLoadError(
@@ -342,8 +373,12 @@ export function TechnicianDashboard({
 				{ status },
 				{ token: session.token },
 			);
-			await import("@/lib/ticket-events").then(({ createTicketEvent }) =>
-				createTicketEvent(
+			setTickets(current =>
+				current.map(ticket => (ticket.id === updated.id ? updated : ticket)),
+			);
+			setSelectedTicket(updated);
+			try {
+				const createdEvent = await createTicketEvent(
 					{
 						editor_id: session.user.id,
 						relation: selectedTicket.id,
@@ -351,12 +386,19 @@ export function TechnicianDashboard({
 						new_status: status,
 					},
 					{ token: session.token },
-				),
-			);
-			setTickets(current =>
-				current.map(ticket => (ticket.id === updated.id ? updated : ticket)),
-			);
-			setSelectedTicket(updated);
+				);
+				setTicketEventState(current =>
+					current?.ticketId === updated.id
+						? { ...current, items: [createdEvent, ...current.items] }
+						: current,
+				);
+			} catch (error) {
+				setLoadError(
+					error instanceof Error
+						? `Status zmieniono, ale nie udało się zapisać historii: ${error.message}`
+						: "Status zmieniono, ale nie udało się zapisać historii.",
+				);
+			}
 		} catch (error) {
 			setLoadError(
 				error instanceof Error
@@ -523,7 +565,7 @@ export function TechnicianDashboard({
 									<div
 										className="ticket-filters"
 										aria-label="Filtruj zgłoszenia">
-										{statusFilters.map(filter => (
+										{STATUS_FILTERS.map(filter => (
 											<Button
 												className={
 													statusFilter === filter
@@ -537,7 +579,7 @@ export function TechnicianDashboard({
 												variant={
 													statusFilter === filter ? "secondary" : "ghost"
 												}>
-										{formatTicketStatus(filter)}
+											{formatTicketStatus(filter)}
 											</Button>
 										))}
 										<Select
@@ -546,7 +588,7 @@ export function TechnicianDashboard({
 											onChange={event => setRoomFilter(event.target.value)}
 											value={roomFilter}>
 											<option value="">Wszystkie sale</option>
-											{ROOMS.map(room => (
+											{ROOM_OPTIONS.map(room => (
 												<option key={room.value} value={room.value}>
 													{room.label}
 												</option>
@@ -579,111 +621,105 @@ export function TechnicianDashboard({
 											<TableHead>Utworzono</TableHead>
 										</TableRow>
 									</TableHeader>
-									<TableBody>
-										{shownTickets.map(ticket => (
-											<TicketTableRow
-												key={ticket.id}
-												ticket={ticket}
-												onClick={() => setSelectedTicket(ticket)}
-											/>
+								<TableBody>
+									{visibleTickets.map(ticket => (
+										<TicketTableRow
+											key={ticket.id}
+											ticket={ticket}
+											onClick={() => openTicket(ticket)}
+										/>
 										))}
-										{shownTickets.length === 0 && (
-											<TableRow>
-												<TableCell className="empty-table" colSpan={6}>
-													{isLoading
-														? "Ładowanie zgłoszeń…"
-														: loadError
-															? "Brak danych do wyświetlenia."
-															: "Brak zgłoszeń dla wybranych filtrów."}
-												</TableCell>
-											</TableRow>
-										)}
-									</TableBody>
+									{visibleTickets.length === 0 && (
+										<TableRow>
+											<TableCell className="empty-table" colSpan={6}>
+												{isLoading
+													? "Ładowanie zgłoszeń…"
+													: loadError
+														? "Brak danych do wyświetlenia."
+														: "Brak zgłoszeń dla wybranych filtrów."}
+											</TableCell>
+										</TableRow>
+									)}
+								</TableBody>
 								</Table>
 							</CardContent>
 						</Card>
 
-						{view === "overview" && (
-							<div className="insight-column">
-								<Card className="insight-card">
-									<CardHeader className="insight-header">
-										<div>
-											<CardTitle>Zgłoszenia według kategorii</CardTitle>
-											<CardDescription>
-												Na podstawie pobranych ticketów
-											</CardDescription>
-										</div>
-									</CardHeader>
-									<CardContent className="category-chart">
-										<div className="chart-total">
-											<strong>{isLoading ? "—" : tickets.length}</strong>
-											<span>zgłoszeń łącznie</span>
-										</div>
-										{categoryCounts.length > 0 ? (
-											categoryCounts.map((category, index) => (
-												<div className="category-bar-row" key={category.label}>
-													<div className="category-label">
-														<span>{category.label}</span>
-														<strong>{category.count}</strong>
-													</div>
-													<div className="bar-track">
-														<span
-															style={{
-																width: `${(category.count / maxCategoryCount) * 100}%`,
-																backgroundColor: [
-																	"#477c64",
-																	"#8bab61",
-																	"#d8a255",
-																	"#9ca9a0",
-																][index % 4],
-															}}
-														/>
-													</div>
+						<div className="insight-column">
+							<Card className="insight-card">
+								<CardHeader className="insight-header">
+									<div>
+										<CardTitle>Zgłoszenia według kategorii</CardTitle>
+										<CardDescription>
+											Na podstawie pobranych ticketów
+										</CardDescription>
+									</div>
+								</CardHeader>
+								<CardContent className="category-chart">
+									<div className="chart-total">
+										<strong>{isLoading ? "—" : tickets.length}</strong>
+										<span>zgłoszeń łącznie</span>
+									</div>
+									{categoryCounts.length > 0 ? (
+										categoryCounts.map((category, index) => (
+											<div className="category-bar-row" key={category.label}>
+												<div className="category-label">
+													<span>{category.label}</span>
+													<strong>{category.count}</strong>
 												</div>
-											))
-										) : (
-											<p className="insight-empty">
-												{isLoading
-													? "Wczytywanie kategorii…"
-													: "Brak danych o kategoriach."}
-											</p>
-										)}
-									</CardContent>
-								</Card>
-								<Card className="insight-card room-card">
-									<CardHeader className="insight-header">
-										<div>
-											<CardTitle>Najwięcej zgłoszeń</CardTitle>
-											<CardDescription>
-												Sala z największą liczbą ticketów
-											</CardDescription>
-										</div>
-									</CardHeader>
-									<CardContent className="room-highlight">
-										<span className="room-icon">
-											<ClipboardList size={18} />
-										</span>
-										<div>
-											<strong>
-												{topRoom
-													? `Sala ${topRoom[0]}`
-													: isLoading
-														? "Ładowanie…"
-														: "Brak danych"}
-											</strong>
-											<small>
-												{topRoom
-													? `${topRoom[1]} zgłoszeń`
-													: "Sala z największą liczbą usterek"}
-											</small>
-										</div>
-										{topRoom && (
-											<Badge variant="secondary">#{topRoom[0]}</Badge>
-										)}
-									</CardContent>
-								</Card>
-							</div>
-						)}
+												<div className="bar-track">
+													<span
+														style={{
+															width: `${(category.count / maxCategoryCount) * 100}%`,
+															backgroundColor:
+																CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+														}}
+													/>
+												</div>
+											</div>
+										))
+									) : (
+										<p className="insight-empty">
+											{isLoading
+												? "Wczytywanie kategorii…"
+												: "Brak danych o kategoriach."}
+										</p>
+									)}
+								</CardContent>
+							</Card>
+							<Card className="insight-card room-card">
+								<CardHeader className="insight-header">
+									<div>
+										<CardTitle>Najwięcej zgłoszeń</CardTitle>
+										<CardDescription>
+											Sala z największą liczbą ticketów
+										</CardDescription>
+									</div>
+								</CardHeader>
+								<CardContent className="room-highlight">
+									<span className="room-icon">
+										<ClipboardList size={18} />
+									</span>
+									<div>
+										<strong>
+											{topRoom
+												? `Sala ${topRoom[0]}`
+												: isLoading
+													? "Ładowanie…"
+													: "Brak danych"}
+										</strong>
+										<small>
+											{topRoom
+												? `${topRoom[1]} zgłoszeń`
+												: "Sala z największą liczbą usterek"}
+										</small>
+									</div>
+									{topRoom && (
+										<Badge variant="secondary">#{topRoom[0]}</Badge>
+									)}
+								</CardContent>
+							</Card>
+						</div>
 					</div>
 
 					<footer className="technician-footer">
@@ -698,7 +734,7 @@ export function TechnicianDashboard({
 				<div
 					className="ticket-modal-backdrop"
 					role="presentation"
-					onClick={() => setSelectedTicket(null)}>
+					onClick={closeTicket}>
 					<section
 						className="ticket-detail-modal"
 						role="dialog"
@@ -709,7 +745,7 @@ export function TechnicianDashboard({
 							className="ticket-modal-close"
 							type="button"
 							aria-label="Zamknij"
-							onClick={() => setSelectedTicket(null)}>
+							onClick={closeTicket}>
 							×
 						</button>
 						<p className="dashboard-kicker">
@@ -724,20 +760,23 @@ export function TechnicianDashboard({
 									<p className="ticket-detail-description">
 										{selectedTicket.description || "Brak opisu."}
 									</p>
-									{(Array.isArray(selectedTicket.photo)
-										? selectedTicket.photo
-										: typeof selectedTicket.photo === "string"
-											? [selectedTicket.photo]
-											: []
-									)
-										.filter(Boolean)
-										.map(photo => (
-											<img
-												className="ticket-detail-photo"
-												key={photo}
-												src={`${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/tickets/${selectedTicket.id}/${encodeURIComponent(photo)}`}
-												alt="Zdjęcie do zgłoszenia"
-											/>
+									{POCKETBASE_URL &&
+										(Array.isArray(selectedTicket.photo)
+											? selectedTicket.photo
+											: typeof selectedTicket.photo === "string"
+												? [selectedTicket.photo]
+												: []
+										).filter(Boolean).map(photo => (
+											<div className="ticket-detail-photo-frame" key={photo}>
+												<Image
+													alt="Zdjęcie do zgłoszenia"
+													className="ticket-detail-photo"
+													fill
+													sizes="(max-width: 720px) 100vw, 700px"
+													src={`${POCKETBASE_URL}/api/files/tickets/${selectedTicket.id}/${encodeURIComponent(photo)}`}
+													unoptimized
+												/>
+											</div>
 										))}
 								</section>
 								<section className="ticket-detail-section ticket-status-section">

@@ -48,7 +48,8 @@ export const TICKET_STATUSES = ["nowe", "w realizacji", "zamknięte"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
 /** `room` is currently a select field, not a relation to a rooms collection. */
-export type RoomValue = "1" | "2" | "3" | "4" | "5";
+export const TICKET_ROOMS = ["1", "2", "3", "4", "5"] as const;
+export type RoomValue = (typeof TICKET_ROOMS)[number];
 
 /** PocketBase returns a file field as an array of stored file names. */
 export type PocketBaseFileInput = File | File[] | string | string[];
@@ -117,9 +118,6 @@ export interface TicketCommentWriteData {
   ticket_id?: RecordId | "";
   comment?: string;
 }
-
-export type CreateTicketEventData = TicketEventWriteData;
-export type UpdateTicketEventData = TicketEventWriteData;
 
 /** Collections confirmed in the VPS migrations. */
 export interface PocketBaseCollections {

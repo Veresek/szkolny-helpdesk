@@ -217,14 +217,3 @@ export function updateRecord<Name extends CollectionName>(
     { ...options, method: "PATCH", body: data },
   );
 }
-
-export function deleteRecord(
-  collection: CollectionName,
-  id: string,
-  options: PocketBaseRequestOptions = {},
-): Promise<void> {
-  return pocketbaseRequest(
-    `/api/collections/${collection}/records/${encodeURIComponent(id)}`,
-    { ...options, method: "DELETE" },
-  );
-}

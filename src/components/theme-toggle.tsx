@@ -1,25 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
+import { THEME_CHANGE_EVENT, THEME_STORAGE_KEY } from "@/lib/theme";
 
-const THEME_STORAGE_KEY = "helpdesk-theme";
+function subscribeToTheme(onChange: () => void) {
+  window.addEventListener(THEME_CHANGE_EVENT, onChange);
+  return () => window.removeEventListener(THEME_CHANGE_EVENT, onChange);
+}
+
+function getThemeSnapshot() {
+  return document.documentElement.classList.contains("dark");
+}
+
+function getServerThemeSnapshot() {
+  return false;
+}
 
 export function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    let savedTheme: string | null = null;
-    try {
-      savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-    } catch {
-      // The theme still follows the system preference when storage is unavailable.
-    }
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const shouldUseDark = savedTheme ? savedTheme === "dark" : prefersDark;
-    document.documentElement.classList.toggle("dark", shouldUseDark);
-    setIsDark(shouldUseDark);
-  }, []);
+  const isDark = useSyncExternalStore(
+    subscribeToTheme,
+    getThemeSnapshot,
+    getServerThemeSnapshot,
+  );
 
   function toggleTheme() {
     const root = document.documentElement;
@@ -34,7 +37,7 @@ export function ThemeToggle() {
     } catch {
       // Keep the current selection for this page when storage is unavailable.
     }
-    setIsDark(nextIsDark);
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   }
 
   return (

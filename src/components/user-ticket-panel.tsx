@@ -32,27 +32,21 @@ import { DashboardTopbar } from "@/components/dashboard-topbar";
 import type { AuthSession } from "@/lib/auth";
 import { createTicket, listTickets } from "@/lib/tickets";
 import { PocketBaseRequestError, subscribeToTicketChanges } from "@/lib/pocketbase";
+import { ROOM_OPTIONS } from "@/lib/ticket-options";
 import { formatTicketStatus } from "@/lib/utils";
 import {
   TICKET_CATEGORIES,
   TICKET_PRIORITIES,
-  type RoomValue,
+  TICKET_ROOMS,
   type TicketRecord,
 } from "@/types/pocketbase";
 
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
-const ROOMS: { value: RoomValue; label: string }[] = [
-  { value: "1", label: "Sala 1" },
-  { value: "2", label: "Sala 2" },
-  { value: "3", label: "Sala 3" },
-  { value: "4", label: "Sala 4" },
-  { value: "5", label: "Sala 5" },
-];
 
 const ticketSchema = z.object({
   title: z.string().trim().min(3, "Tytuł musi mieć co najmniej 3 znaki.").max(120, "Tytuł może mieć maksymalnie 120 znaków."),
   description: z.string().trim().min(10, "Opis musi mieć co najmniej 10 znaków."),
-  room: z.enum(["1", "2", "3", "4", "5"], { error: "Wybierz salę." }),
+  room: z.enum(TICKET_ROOMS, { error: "Wybierz salę." }),
   category: z.enum(TICKET_CATEGORIES, { error: "Wybierz kategorię." }),
   priority: z.enum(TICKET_PRIORITIES, { error: "Wybierz priorytet." }),
   photo: z.custom<FileList>(
@@ -112,27 +106,36 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
 
   const photoRegistration = register("photo");
 
-  const fetchMyTickets = useCallback(async () => {
+  const fetchMyTickets = useCallback(async (signal?: AbortSignal) => {
     try {
       const result = await listTickets({
         token: session.token,
         perPage: 100,
         sort: "-created",
         filter: `user_id = ${JSON.stringify(session.user.id)}`,
+        signal,
       });
+      if (signal?.aborted) return;
       setMyTickets(result.items);
       setTicketsError("");
     } catch (error) {
-      setTicketsError(error instanceof Error ? error.message : "Nie udało się pobrać zgłoszeń.");
+      if (!signal?.aborted) {
+        setTicketsError(error instanceof Error ? error.message : "Nie udało się pobrać zgłoszeń.");
+      }
     } finally {
-      setTicketsLoading(false);
+      if (!signal?.aborted) setTicketsLoading(false);
     }
   }, [session.token, session.user.id]);
 
   useEffect(() => {
-    void fetchMyTickets();
+    const controller = new AbortController();
+    const initialLoad = window.setTimeout(() => void fetchMyTickets(controller.signal), 0);
     const unsubscribe = subscribeToTicketChanges(session.token, () => void fetchMyTickets());
-    return unsubscribe;
+    return () => {
+      window.clearTimeout(initialLoad);
+      controller.abort();
+      unsubscribe();
+    };
   }, [fetchMyTickets, session.token]);
 
   const submitTicket: SubmitHandler<TicketFormValues> = async (values) => {
@@ -175,13 +178,8 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
     }
   };
 
-  function signOut() {
-    onLogout();
-  }
-
   return (
     <main className="technician-shell user-ticket-shell">
-      {(audience === "uzytkownik" || audience === "technik") && (
         <aside className={`technician-sidebar user-ticket-sidebar${audience === "technik" ? " technician-user-sidebar" : ""}`}>
           <Link className="tech-brand" href="/" aria-label="Szkolny Helpdesk — strona główna">
             <span className="tech-brand-icon"><Wrench size={18} /></span>
@@ -193,9 +191,8 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
             <Button className={userView === "create" ? "tech-nav-item active" : "tech-nav-item"} onClick={() => setUserView("create")} type="button" variant="ghost"><Plus size={17} /> Zgłoś usterkę</Button>
             <Button className={userView === "mine" ? "tech-nav-item active" : "tech-nav-item"} onClick={() => setUserView("mine")} type="button" variant="ghost"><ClipboardList size={17} /> Moje usterki</Button>
           </nav>
-          <div className="sidebar-bottom"><div className="tech-profile"><span className="tech-profile-avatar">{session.user.email.slice(0, 1).toUpperCase()}</span><span className="tech-profile-copy"><strong>{session.user.email}</strong></span><button className="tech-logout" onClick={signOut} type="button" aria-label="Wyloguj się"><LogOut size={16} /></button></div></div>
+          <div className="sidebar-bottom"><div className="tech-profile"><span className="tech-profile-avatar">{session.user.email.slice(0, 1).toUpperCase()}</span><span className="tech-profile-copy"><strong>{session.user.email}</strong></span><button className="tech-logout" onClick={onLogout} type="button" aria-label="Wyloguj się"><LogOut size={16} /></button></div></div>
         </aside>
-      )}
       <section className="user-ticket-main">
       <DashboardTopbar
         email={session.user.email}
@@ -265,7 +262,7 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
                 <Label className="field-label" htmlFor="ticket-room">Sala <span>*</span></Label>
                 <Select id="ticket-room" defaultValue="" {...register("room")} aria-invalid={Boolean(errors.room)}>
                   <option value="" disabled>Wybierz salę</option>
-                  {ROOMS.map((room) => <option key={room.value} value={room.value}>{room.label}</option>)}
+                  {ROOM_OPTIONS.map((room) => <option key={room.value} value={room.value}>{room.label}</option>)}
                 </Select>
                 {errors.room && <p className="field-error">{errors.room.message}</p>}
               </div>

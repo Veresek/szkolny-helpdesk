@@ -1,16 +1,13 @@
 import {
   createRecord,
-  getRecord,
   listRecords,
-  updateRecord,
   type PocketBaseList,
   type PocketBaseListOptions,
   type PocketBaseRequestOptions,
 } from "@/lib/pocketbase";
 import type {
-  CreateTicketEventData,
   TicketEventRecord,
-  UpdateTicketEventData,
+  TicketEventWriteData,
 } from "@/types/pocketbase";
 
 export interface ListTicketEventsOptions extends PocketBaseListOptions {
@@ -34,24 +31,9 @@ export function listTicketEvents({
   });
 }
 
-export function getTicketEvent(
-  id: string,
-  options?: PocketBaseRequestOptions,
-): Promise<TicketEventRecord> {
-  return getRecord("ticket_events", id, options);
-}
-
 export function createTicketEvent(
-  data: CreateTicketEventData,
+  data: TicketEventWriteData,
   options?: PocketBaseRequestOptions,
 ): Promise<TicketEventRecord> {
   return createRecord("ticket_events", data, options);
-}
-
-export function updateTicketEvent(
-  id: string,
-  data: UpdateTicketEventData,
-  options?: PocketBaseRequestOptions,
-): Promise<TicketEventRecord> {
-  return updateRecord("ticket_events", id, data, options);
 }

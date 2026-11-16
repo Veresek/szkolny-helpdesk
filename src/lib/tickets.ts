@@ -1,7 +1,5 @@
 import {
   createRecord,
-  deleteRecord,
-  getRecord,
   listRecords,
   updateRecord,
   type PocketBaseList,
@@ -41,13 +39,6 @@ export function listTickets({ filters, filter, ...options }: ListTicketsOptions 
   });
 }
 
-export function getTicket(
-  id: string,
-  options?: PocketBaseRequestOptions,
-): Promise<TicketRecord> {
-  return getRecord("tickets", id, options);
-}
-
 export function createTicket(
   data: CreateTicketData,
   options?: PocketBaseRequestOptions,
@@ -62,11 +53,3 @@ export function updateTicket(
 ): Promise<TicketRecord> {
   return updateRecord("tickets", id, data, options);
 }
-
-export function deleteTicket(
-  id: string,
-  options?: PocketBaseRequestOptions,
-): Promise<void> {
-  return deleteRecord("tickets", id, options);
-}
-
