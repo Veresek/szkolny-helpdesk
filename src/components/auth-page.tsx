@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UserTicketPanel } from "@/components/user-ticket-panel";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { TechnicianDashboard } from "@/components/technician-dashboard";
 import {
   getAuthErrorMessage,
@@ -117,6 +118,7 @@ export function AuthPage() {
           <span className="brand-name">szkolny<span>helpdesk</span></span>
         </Link>
         <div className="header-note"><span className="online-dot" /> System zgłoszeń szkolnych</div>
+        <ThemeToggle />
       </header>
 
       <section className="auth-layout" aria-label="Logowanie i rejestracja">

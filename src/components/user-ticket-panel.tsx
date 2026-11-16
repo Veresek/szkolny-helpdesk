@@ -28,9 +28,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { DashboardTopbar } from "@/components/dashboard-topbar";
 import type { AuthSession } from "@/lib/auth";
 import { createTicket, listTickets } from "@/lib/tickets";
 import { PocketBaseRequestError, subscribeToTicketChanges } from "@/lib/pocketbase";
+import { formatTicketStatus } from "@/lib/utils";
 import {
   TICKET_CATEGORIES,
   TICKET_PRIORITIES,
@@ -180,7 +182,7 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
   return (
     <main className="technician-shell user-ticket-shell">
       {(audience === "uzytkownik" || audience === "technik") && (
-        <aside className="technician-sidebar user-ticket-sidebar">
+        <aside className={`technician-sidebar user-ticket-sidebar${audience === "technik" ? " technician-user-sidebar" : ""}`}>
           <Link className="tech-brand" href="/" aria-label="Szkolny Helpdesk — strona główna">
             <span className="tech-brand-icon"><Wrench size={18} /></span>
             <span>szkolny<strong>helpdesk</strong></span>
@@ -189,22 +191,29 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
           <nav className="tech-nav" aria-label="Menu użytkownika">
             {audience === "technik" && <Button className="tech-nav-item" onClick={onBack} type="button" variant="ghost"><LayoutDashboard size={17} /> Przegląd</Button>}
             <Button className={userView === "create" ? "tech-nav-item active" : "tech-nav-item"} onClick={() => setUserView("create")} type="button" variant="ghost"><Plus size={17} /> Zgłoś usterkę</Button>
-            <Button className={userView === "mine" ? "tech-nav-item active" : "tech-nav-item"} onClick={() => setUserView("mine")} type="button" variant="ghost"><ClipboardList size={17} /> Moje usterki<span className="nav-count">{myTickets.length}</span></Button>
+            <Button className={userView === "mine" ? "tech-nav-item active" : "tech-nav-item"} onClick={() => setUserView("mine")} type="button" variant="ghost"><ClipboardList size={17} /> Moje usterki</Button>
           </nav>
           <div className="sidebar-bottom"><div className="tech-profile"><span className="tech-profile-avatar">{session.user.email.slice(0, 1).toUpperCase()}</span><span className="tech-profile-copy"><strong>{session.user.email}</strong></span><button className="tech-logout" onClick={signOut} type="button" aria-label="Wyloguj się"><LogOut size={16} /></button></div></div>
         </aside>
       )}
       <section className="user-ticket-main">
-      <header className="dashboard-header">
-        <Link className="brand" href="/" aria-label="Szkolny Helpdesk — strona główna">
-          <span className="brand-mark"><Wrench size={19} strokeWidth={2.5} /></span>
-          <span className="brand-name">szkolny<span>helpdesk</span></span>
-        </Link>
-      </header>
+      <DashboardTopbar
+        email={session.user.email}
+        onLogout={onLogout}
+        title={userView === "mine" ? "Moje usterki" : "Zgłoś usterkę"}
+      />
 
       {userView === "mine" ? (
-        <section className="user-tickets-page"><h1>Moje usterki</h1><p>Sprawdzaj status swoich zgłoszeń.</p>{ticketsLoading ? <p className="my-tickets-empty">Pobieranie zgłoszeń…</p> : ticketsError ? <p role="alert" className="my-tickets-empty">{ticketsError}</p> : myTickets.length === 0 ? <p className="my-tickets-empty">Nie masz jeszcze zgłoszeń.</p> : <div className="user-tickets-grid">{myTickets.map((ticket) => <Card className="user-ticket-item" key={ticket.id}><div className="user-ticket-item-head"><h2>{ticket.title || "Bez tytułu"}</h2><span className={`my-ticket-status ${ticket.status === "zamknięte" ? "closed" : ticket.status === "w realizacji" ? "progress" : "new"}`}>{ticket.status || "nowe"}</span></div><p>{ticket.description}</p><small>{ticket.room ? `Sala ${ticket.room}` : ""}{ticket.room && ticket.category ? " · " : ""}{ticket.category} · {new Date(ticket.created).toLocaleDateString("pl-PL")}</small></Card>)}</div>}</section>
-      ) : <div className="ticket-workspace">
+        <section className="user-tickets-page"><h1>Moje usterki</h1><p>Sprawdzaj status swoich zgłoszeń.</p>{ticketsLoading ? <p className="my-tickets-empty">Pobieranie zgłoszeń…</p> : ticketsError ? <p role="alert" className="my-tickets-empty">{ticketsError}</p> : myTickets.length === 0 ? <p className="my-tickets-empty">Nie masz jeszcze zgłoszeń.</p> : <div className="user-tickets-grid">{myTickets.map((ticket) => {
+          const statusTone = ticket.status === "zamknięte" ? "closed" : ticket.status === "w realizacji" ? "progress" : "new";
+          return <Card className="user-ticket-item" key={ticket.id}><div className="user-ticket-item-head"><h2>{ticket.title || "Bez tytułu"}</h2><span className={`my-ticket-status ${statusTone}`}><span aria-hidden="true" className={`status-dot ${statusTone}`} />{formatTicketStatus(ticket.status || "nowe")}</span></div><p>{ticket.description}</p><small>{ticket.room ? `Sala ${ticket.room}` : ""}{ticket.room && ticket.category ? " · " : ""}{ticket.category} · {new Date(ticket.created).toLocaleDateString("pl-PL")}</small></Card>;
+        })}</div>}</section>
+      ) : <>
+        <section className="user-tickets-page create-ticket-intro">
+          <h1>Zgłoś usterkę</h1>
+          <p>Opisz problem, a zespół techniczny zajmie się zgłoszeniem.</p>
+        </section>
+        <div className="ticket-workspace">
         <Card className="ticket-form-card" role="region" aria-labelledby="ticket-form-title">
           <div className="ticket-form-heading">
             <div className="ticket-heading-icon"><Plus size={19} /></div>
@@ -334,7 +343,7 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
                 {myTickets.map((ticket) => (
                   <li key={ticket.id}>
                     <div className="my-ticket-title"><strong>{ticket.title || "Bez tytułu"}</strong><small>{ticket.room ? `Sala ${ticket.room}` : ""}{ticket.room && ticket.category ? " · " : ""}{ticket.category}</small></div>
-                    <span className={`my-ticket-status ${ticket.status === "zamknięte" ? "closed" : ticket.status === "w realizacji" ? "progress" : "new"}`}>{ticket.status || "nowe"}</span>
+                    <span className={`my-ticket-status ${ticket.status === "zamknięte" ? "closed" : ticket.status === "w realizacji" ? "progress" : "new"}`}>{formatTicketStatus(ticket.status || "nowe")}</span>
                   </li>
                 ))}
               </ul>
@@ -353,7 +362,8 @@ export function UserTicketPanel({ session, onLogout, audience = "uzytkownik", on
             <div><strong>To pilna sprawa?</strong><p>Skontaktuj się bezpośrednio z sekretariatem lub technikiem.</p></div>
           </Card>
         </aside>
-      </div>}
+        </div>
+      </>}
 
       <footer className="dashboard-footer"><span>© 2026 Szkolny Helpdesk</span><span><ShieldCheck size={14} /> Dostęp do ticketów ma wyłącznie zespół techniczny.</span></footer>
       </section>

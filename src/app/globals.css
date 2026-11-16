@@ -729,6 +729,206 @@
   }
 }
 
+.theme-toggle {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 200;
+  display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  border: 1px solid #dfe6dd;
+  border-radius: 50%;
+  background: #fff;
+  color: #315a42;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgb(21 40 28 / 20%), 0 2px 6px rgb(21 40 28 / 12%);
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.theme-toggle:hover { border-color: #b9cbb5; color: #234d39; transform: translateY(-2px); box-shadow: 0 11px 28px rgb(21 40 28 / 24%), 0 3px 8px rgb(21 40 28 / 14%); }
+.theme-toggle:focus-visible { outline: 2px solid #80ad73; outline-offset: 2px; }
+.theme-toggle span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+
+.dark { color-scheme: dark; }
+
+html.theme-changing *,
+html.theme-changing *::before,
+html.theme-changing *::after {
+  transition: none !important;
+}
+
+.dark .auth-shell,
+.dark .dashboard-shell,
+.dark .technician-shell {
+  background: #111815;
+  color: #e4ece5;
+}
+
+.dark .auth-shell { --auth-ink: #e4ece5; --auth-muted: #a2b0a6; --auth-line: #34423a; }
+.dark .auth-layout { border-color: #2b3830; background: #19221d; box-shadow: 0 24px 80px rgb(0 0 0 / 25%); }
+.dark .form-panel { background: #19221d; }
+.dark .form-heading h2,
+.dark .success-state h2,
+.dark .field-label { color: #e5ede6; }
+.dark .header-note,
+.dark .form-description,
+.dark .field-hint,
+.dark .register-role-note,
+.dark .page-footer,
+.dark .session-note { color: #9aa99f; }
+.dark .auth-tabs { background: #222d26; }
+.dark .auth-tab { color: #a5b2a8; }
+.dark .auth-tab:hover { color: #c8e5c0; }
+.dark .auth-tab.active { background: #344239; color: #e5f1e2; box-shadow: 0 1px 4px rgb(0 0 0 / 24%); }
+.dark .auth-input,
+.dark .ticket-field input:not([type="file"]),
+.dark .ticket-field textarea,
+.dark .ticket-field select { border-color: #3a4940; background: #121a16; color: #e3ece5; }
+.dark .auth-input::placeholder,
+.dark .ticket-field input::placeholder,
+.dark .ticket-field textarea::placeholder { color: #7d8b82; }
+.dark .input-icon,
+.dark .password-toggle { color: #9eada2; }
+.dark .role-pill { border-color: #3b4a40; background: #222e26; color: #c2d9bd; }
+.dark .success-icon { background: #263b2c; color: #a9d98b; }
+.dark .theme-toggle { border-color: #3a4940; background: #202b24; color: #d1dfd3; }
+.dark .theme-toggle:hover { border-color: #69845f; color: #d9f2cb; }
+
+.dark .technician-shell { --tech-ink: #e2ebe3; --tech-muted: #a0aea4; }
+.dark .technician-main { background: #111815; }
+.dark .technician-topbar,
+.dark .dashboard-header { border-color: #2b3830; background: #171f1a; }
+.dark .breadcrumb { color: #94a399; }
+.dark .breadcrumb strong,
+.dark .topbar-profile { color: #d4dfd6; }
+.dark .dashboard-title-row h1,
+.dark .user-tickets-page > h1 { color: #e1eae2; }
+.dark .dashboard-subtitle,
+.dark .user-tickets-page > p { color: #9ba99f; }
+.dark .stat-card,
+.dark .ticket-list-card,
+.dark .insight-card,
+.dark .ticket-form-card,
+.dark .how-card,
+.dark .my-tickets-card,
+.dark .help-card,
+.dark .user-ticket-item {
+  border-color: #2c3931;
+  background: #19221d;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 12%);
+}
+.dark .stat-top > span:first-child,
+.dark .stat-card-content > p,
+.dark .ticket-list-title [data-slot="card-description"],
+.dark .insight-header [data-slot="card-description"],
+.dark .dashboard-kicker,
+.dark .ticket-time { color: #9aa99f !important; }
+.dark .stat-number-row > strong,
+.dark .ticket-list-title [data-slot="card-title"],
+.dark .insight-header [data-slot="card-title"],
+.dark .chart-total strong,
+.dark .room-highlight > div strong,
+.dark .ticket-subject strong,
+.dark .user-ticket-item h2 { color: #e2ebe3; }
+.dark .ticket-search input,
+.dark .filter-select,
+.dark .technician-table [data-slot="table-header"] tr { border-color: #344239; background: #141c17; }
+.dark .technician-table [data-slot="table-head"] { color: #9aa99f; }
+.dark .technician-table [data-slot="table-cell"] { color: #c1cec4; }
+.dark .technician-table [data-slot="table-row"] { border-color: #2c3931; }
+.dark .ticket-subject small,
+.dark .category-label,
+.dark .room-highlight > div small,
+.dark .my-tickets-empty,
+.dark .user-ticket-item > small { color: #9aa99f; }
+.dark .ticket-toolbar input,
+.dark .ticket-field input:not([type="file"]),
+.dark .ticket-field textarea,
+.dark .ticket-field select { color-scheme: dark; }
+.dark .ticket-form-heading h2,
+.dark .how-card-title h2,
+.dark .ticket-field label,
+.dark .upload-label strong,
+.dark .file-name,
+.dark .my-ticket-title strong { color: #dce7de; }
+.dark .ticket-form-heading p,
+.dark .upload-label small,
+.dark .file-name small,
+.dark .optional-label,
+.dark .ticket-form-footer p,
+.dark .my-ticket-title small { color: #9aa99f; }
+.dark .upload-box { border-color: #435246; background: #151e18; }
+.dark .upload-box:hover { background: #1c2920; }
+.dark .upload-browse,
+.dark .signout-button { border-color: #3a4940; background: #202b24; color: #c1d0c4; }
+.dark .ticket-form-footer,
+.dark .my-tickets-list li,
+.dark .how-card-title { border-color: #303c34; }
+.dark .how-steps strong,
+.dark .help-card strong { color: #d8e4d9; }
+.dark .how-steps li > span { background: #26332a; color: #9fb38f; }
+.dark .how-steps small,
+.dark .help-card p,
+.dark .dashboard-footer { color: #9aa99f; }
+.dark .help-card { background: #202d23; }
+.dark .help-card-icon,
+.dark .ticket-heading-icon,
+.dark .how-icon,
+.dark .upload-icon,
+.dark .file-icon { background: #293a2d; }
+.dark .bar-track { background: #2c3931; }
+.dark .room-icon { background: #27332a; }
+.dark .user-ticket-shell .my-ticket-status { border: 1px solid #3a4940; background: #202a24; color: #e2ebe3; }
+.dark .room-highlight [data-slot="badge"] { border-color: #3a5540; background: #293b2d; color: #b9d6ad; }
+.dark .stat-icon.forest { background: #27382c; color: #9dc18e; }
+.dark .stat-icon.amber { background: #382f21; color: #d6b16f; }
+.dark .stat-icon.blue { background: #27353d; color: #9ab9c9; }
+.dark .stat-icon.green { background: #27392e; color: #9acaa5; }
+.dark .stat-trend.neutral { background: #29352e; color: #b7c4ba; }
+.dark .filter-chip.selected { background: #2a3b2e; color: #c6ddb9; }
+.dark [data-slot="badge"].bg-amber-100 { border-color: transparent; background: #3a301e; color: #dfc17e; }
+.dark [data-slot="badge"].bg-emerald-100 { border-color: transparent; background: #293b2d; color: #acd3a0; }
+.dark .technician-table [data-slot="badge"].ticket-priority-label.low { border: 0; background: #29412e; color: #a9d59d; }
+.dark .technician-table [data-slot="badge"].ticket-status-label.new,
+.dark .technician-table [data-slot="badge"].ticket-status-label.progress,
+.dark .technician-table [data-slot="badge"].ticket-status-label.closed { border-color: #3a4940; background: #202a24; color: #e2ebe3; }
+.dark .technician-footer { color: #9aa99f; }
+.dark .technician-footer svg { color: #a7c69a; }
+.dark .ticket-detail-modal,
+.dark .ticket-detail-section,
+.dark .ticket-detail-comments { border-color: #344239; background: #19221d; color: #e1eae2; }
+.dark .ticket-detail-modal h2,
+.dark .ticket-detail-modal h3,
+.dark .ticket-detail-section h2,
+.dark .ticket-detail-section h3,
+.dark .ticket-detail-comments h3 { color: #e1eae2; }
+.dark .ticket-detail-comments { border-top-color: #526b50; }
+.dark .ticket-detail-description { color: #c2d0c5; }
+.dark .ticket-comment-list li,
+.dark .ticket-event-list li { border-color: #344239; background: #141c17; color: #d7e2d9; }
+.dark .ticket-comment-list small,
+.dark .ticket-comment-list time,
+.dark .ticket-event-list time,
+.dark .ticket-event-list small,
+.dark .ticket-history-empty { color: #a2afa5; }
+.dark .ticket-modal-close { color: #d5e0d7; }
+.dark .demo-ticket-row:hover { background: #202b24; }
+.dark .ticket-alert-error,
+.dark .error-message { border-color: #693d35; background: #35231f; color: #f0b5a7; }
+.dark .ticket-alert-success,
+.dark .notice-message { border-color: #3d5b3b; background: #223222; color: #c1e1b6; }
+.dark .technician-sidebar { background: #0d1712; }
+.dark .tech-nav-item { color: #bac8bd; }
+.dark .tech-nav-item:hover { color: #f2f7f1; }
+.dark .tech-nav-item.active,
+.dark .tech-nav-item.active:hover { color: #ddf2c9; }
+
+@media (max-width: 680px) {
+  .theme-toggle { right: 17px; bottom: 17px; width: 46px; height: 46px; }
+}
+
 @media (max-width: 680px) {
   .auth-shell {
     padding: 0 15px;
@@ -1296,10 +1496,15 @@
 .my-ticket-title strong, .my-ticket-title small { display: block; }
 .my-ticket-title strong { overflow: hidden; color: #425048; font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .my-ticket-title small { margin-top: 4px; color: #939e96; font-size: 9px; }
-.my-ticket-status { flex: 0 0 auto; padding: 4px 7px; border-radius: 999px; font-size: 9px; font-weight: 650; text-transform: capitalize; }
+.my-ticket-status { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 999px; font-size: 9px; font-weight: 650; }
 .my-ticket-status.new { background: #edf4e9; color: #587a50; }
 .my-ticket-status.progress { background: #edf2f8; color: #54708f; }
 .my-ticket-status.closed { background: #f0f1ef; color: #737c75; }
+.my-ticket-status.new,
+.my-ticket-status.progress,
+.my-ticket-status.closed { border: 1px solid #e3e8e3; background: #fff; color: #202720; }
+.technician-table [data-slot="badge"].ticket-status-label { border-color: #e3e8e3; background: #fff; color: #202720; }
+.technician-table [data-slot="badge"].ticket-priority-label.low { border: 0; background: #d9eed4; color: #356f3e; }
 
 .how-card {
   padding: 19px 18px 18px;
@@ -1536,11 +1741,16 @@
 
 .user-ticket-shell { grid-template-columns: 236px minmax(0, 1fr); padding: 0; }
 .user-ticket-main { min-width: 0; padding: 0 5.3vw 18px; }
-.user-ticket-shell .dashboard-header { height: 66px; }
-.user-ticket-shell .dashboard-header .brand { display: none; }
+.user-ticket-main { padding-right: 34px; padding-left: 34px; }
+.user-ticket-main > .technician-topbar { box-sizing: border-box; width: calc(100% + 68px); max-width: none; margin-right: -34px; margin-left: -34px; }
 .user-ticket-shell .dashboard-header, .user-ticket-shell .ticket-workspace, .user-ticket-shell .dashboard-footer { width: min(100%, 1240px); }
 .user-ticket-shell .user-ticket-main { display: block; }
 .user-tickets-page { width: min(100%, 1240px); min-height: calc(100vh - 105px); margin: 30px auto 0; }
+.user-ticket-shell .user-ticket-main > .create-ticket-intro {
+  height: auto;
+  min-height: unset;
+  margin-bottom: 0;
+}
 .user-tickets-page > h1 { margin: 0; color: #1e2924; font-size: 25px; letter-spacing: -0.7px; }
 .user-tickets-page > p { margin: 6px 0 20px; color: #7e8982; font-size: 12px; }
 .user-tickets-grid { display: grid; gap: 12px; }
@@ -1551,6 +1761,16 @@
 .user-ticket-item > small { color: #939e96; font-size: 10px; }
 .user-ticket-shell .dashboard-intro { display: none; }
 .dashboard-shell > .user-ticket-main { display: contents; }
+
+@media (max-width: 1100px) {
+  .user-ticket-main { padding-right: 22px; padding-left: 22px; }
+  .user-ticket-main > .technician-topbar { width: calc(100% + 44px); margin-right: -22px; margin-left: -22px; }
+}
+
+@media (max-width: 740px) {
+  .user-ticket-main { padding-right: 15px; padding-left: 15px; }
+  .user-ticket-main > .technician-topbar { width: calc(100% + 30px); margin-right: -15px; margin-left: -15px; }
+}
 
 .technician-sidebar {
   position: sticky;
@@ -2671,4 +2891,87 @@
   .stat-card-content > p { font-size: 10px; }
   .filter-chip { font-size: 10px; }
   .filter-select { min-width: 116px; }
+}
+
+html.dark .technician-shell .room-card .room-highlight [data-slot="badge"] {
+  border-color: #3a5540;
+  background-color: #293b2d !important;
+  color: #b9d6ad;
+}
+
+html.dark .technician-shell .how-card .how-steps li > span {
+  background-color: #26332a !important;
+  color: #9fb38f !important;
+}
+
+.topbar-logout {
+  display: none;
+}
+
+@media (max-width: 740px) {
+  .technician-sidebar {
+    position: fixed;
+    z-index: 120;
+    inset: auto 0 0;
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: 7px 10px calc(7px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgb(226 238 223 / 13%);
+    box-shadow: 0 -8px 24px rgb(0 0 0 / 18%);
+  }
+
+  .technician-sidebar .tech-brand,
+  .technician-sidebar .sidebar-label,
+  .technician-sidebar .sidebar-bottom {
+    display: none !important;
+  }
+
+  .technician-sidebar .tech-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    margin: 0;
+  }
+
+  .user-ticket-sidebar .tech-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-user-sidebar .tech-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .technician-sidebar .tech-nav-item {
+    position: relative;
+    height: auto;
+    min-height: 53px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 2px;
+    border-radius: 9px;
+    font-size: 10px;
+    line-height: 1.15;
+  }
+
+  .technician-sidebar .tech-nav-item svg { width: 17px; height: 17px; }
+  .technician-sidebar .nav-count { position: absolute; top: 3px; right: calc(50% - 25px); min-width: 16px; height: 15px; font-size: 8px; }
+
+  .technician-topbar { height: 54px; padding-inline: 14px; }
+  .technician-topbar .breadcrumb span,
+  .technician-topbar .breadcrumb svg,
+  .technician-topbar .topbar-profile .tech-profile-avatar { display: none; }
+  .technician-topbar .breadcrumb { font-size: 10px; }
+  .technician-topbar .breadcrumb strong { white-space: nowrap; }
+  .technician-topbar .topbar-actions { gap: 9px; }
+  .technician-topbar .topbar-profile { min-width: 0; gap: 0; font-size: 9px; }
+  .technician-topbar .topbar-profile > span:last-child { display: block; max-width: min(34vw, 140px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar-logout { display: inline-flex; width: auto; height: 30px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 5px; padding: 0 6px; border: 0; border-radius: 7px; background: transparent; color: #66756b; cursor: pointer; font-size: 9px; }
+  .topbar-logout span { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: nowrap; }
+  .dark .topbar-logout { color: #c2d0c5; }
+
+  .technician-main,
+  .user-ticket-main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .technician-shell .theme-toggle { bottom: calc(78px + env(safe-area-inset-bottom)); }
 }
