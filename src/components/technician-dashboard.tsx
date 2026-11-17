@@ -73,7 +73,10 @@ type StatusFilter = "Wszystkie" | TicketStatus;
 
 const STATUS_FILTERS: StatusFilter[] = ["Wszystkie", ...TICKET_STATUSES];
 const CATEGORY_COLORS = ["#477c64", "#8bab61", "#d8a255", "#9ca9a0"];
-const POCKETBASE_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL?.replace(/\/$/, "");
+const POCKETBASE_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL?.replace(
+	/\/$/,
+	"",
+);
 
 interface TicketDetailsState<T> {
 	ticketId: string;
@@ -151,7 +154,7 @@ export function TechnicianDashboard({
 				if (signal?.aborted) return;
 				setLoadError(
 					error instanceof PocketBaseRequestError && error.status === 403
-						? "Konto technika nie ma uprawnień do odczytu zgłoszeń. Sprawdź reguły tickets.listRule i tickets.viewRule."
+						? "Konto technika nie ma uprawnień do odczytu zgłoszeń."
 						: error instanceof Error
 							? error.message
 							: "Nie udało się pobrać zgłoszeń. Spróbuj ponownie.",
@@ -472,7 +475,11 @@ export function TechnicianDashboard({
 			</aside>
 
 			<section className="technician-main">
-					<DashboardTopbar email={session.user.email} onLogout={onLogout} title="Przegląd" />
+				<DashboardTopbar
+					email={session.user.email}
+					onLogout={onLogout}
+					title="Przegląd"
+				/>
 
 				<div className="technician-content">
 					<div className="dashboard-title-row">
@@ -579,7 +586,7 @@ export function TechnicianDashboard({
 												variant={
 													statusFilter === filter ? "secondary" : "ghost"
 												}>
-											{formatTicketStatus(filter)}
+												{formatTicketStatus(filter)}
 											</Button>
 										))}
 										<Select
@@ -621,26 +628,26 @@ export function TechnicianDashboard({
 											<TableHead>Utworzono</TableHead>
 										</TableRow>
 									</TableHeader>
-								<TableBody>
-									{visibleTickets.map(ticket => (
-										<TicketTableRow
-											key={ticket.id}
-											ticket={ticket}
-											onClick={() => openTicket(ticket)}
-										/>
+									<TableBody>
+										{visibleTickets.map(ticket => (
+											<TicketTableRow
+												key={ticket.id}
+												ticket={ticket}
+												onClick={() => openTicket(ticket)}
+											/>
 										))}
-									{visibleTickets.length === 0 && (
-										<TableRow>
-											<TableCell className="empty-table" colSpan={6}>
-												{isLoading
-													? "Ładowanie zgłoszeń…"
-													: loadError
-														? "Brak danych do wyświetlenia."
-														: "Brak zgłoszeń dla wybranych filtrów."}
-											</TableCell>
-										</TableRow>
-									)}
-								</TableBody>
+										{visibleTickets.length === 0 && (
+											<TableRow>
+												<TableCell className="empty-table" colSpan={6}>
+													{isLoading
+														? "Ładowanie zgłoszeń…"
+														: loadError
+															? "Brak danych do wyświetlenia."
+															: "Brak zgłoszeń dla wybranych filtrów."}
+												</TableCell>
+											</TableRow>
+										)}
+									</TableBody>
 								</Table>
 							</CardContent>
 						</Card>
@@ -714,9 +721,7 @@ export function TechnicianDashboard({
 												: "Sala z największą liczbą usterek"}
 										</small>
 									</div>
-									{topRoom && (
-										<Badge variant="secondary">#{topRoom[0]}</Badge>
-									)}
+									{topRoom && <Badge variant="secondary">#{topRoom[0]}</Badge>}
 								</CardContent>
 							</Card>
 						</div>
@@ -766,18 +771,20 @@ export function TechnicianDashboard({
 											: typeof selectedTicket.photo === "string"
 												? [selectedTicket.photo]
 												: []
-										).filter(Boolean).map(photo => (
-											<div className="ticket-detail-photo-frame" key={photo}>
-												<Image
-													alt="Zdjęcie do zgłoszenia"
-													className="ticket-detail-photo"
-													fill
-													sizes="(max-width: 720px) 100vw, 700px"
-													src={`${POCKETBASE_URL}/api/files/tickets/${selectedTicket.id}/${encodeURIComponent(photo)}`}
-													unoptimized
-												/>
-											</div>
-										))}
+										)
+											.filter(Boolean)
+											.map(photo => (
+												<div className="ticket-detail-photo-frame" key={photo}>
+													<Image
+														alt="Zdjęcie do zgłoszenia"
+														className="ticket-detail-photo"
+														fill
+														sizes="(max-width: 720px) 100vw, 700px"
+														src={`${POCKETBASE_URL}/api/files/tickets/${selectedTicket.id}/${encodeURIComponent(photo)}`}
+														unoptimized
+													/>
+												</div>
+											))}
 								</section>
 								<section className="ticket-detail-section ticket-status-section">
 									<label className="ticket-status-control">
@@ -792,7 +799,7 @@ export function TechnicianDashboard({
 											}>
 											{TICKET_STATUSES.map(status => (
 												<option key={status} value={status}>
-											{formatTicketStatus(status)}
+													{formatTicketStatus(status)}
 												</option>
 											))}
 										</Select>
@@ -950,7 +957,9 @@ function TicketTableRow({
 				</Badge>
 			</TableCell>
 			<TableCell>
-				<Badge className={`ticket-status-label ${statusTone}`} variant={statusVariant}>
+				<Badge
+					className={`ticket-status-label ${statusTone}`}
+					variant={statusVariant}>
 					<span
 						className={`status-dot ${ticket.status === "nowe" ? "new" : ticket.status === "zamknięte" ? "closed" : "progress"}`}
 					/>
