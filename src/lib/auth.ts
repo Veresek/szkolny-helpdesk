@@ -117,7 +117,7 @@ export function getAuthErrorMessage(error: unknown): string {
 		return "Hasło musi mieć co najmniej 8 znaków, a oba pola muszą być zgodne.";
 	}
 	if (error.status === 400 || error.status === 403) {
-		return "Błąd autoryzacji podczas rejestracji.";
+		return "Błąd autoryzacji podczas rejestracji/logowania.";
 	}
 
 	return error.message;
